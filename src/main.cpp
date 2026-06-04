@@ -112,6 +112,13 @@ int main(int argc, char* argv[]) {
 					if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
 						running = false;
 					}
+					// V tuşu: vsync aç/kapat
+					if (event.key.keysym.scancode == SDL_SCANCODE_V) {
+						static bool vsync = true;
+						vsync = !vsync;
+						SDL_GL_SetSwapInterval(vsync ? 1 : 0);
+						std::cout << "VSync: " << (vsync ? "ACIK" : "KAPALI") << std::endl;
+					}
 					break;
 				case SDL_KEYUP:
 					// Tuş bırakıldı
@@ -132,7 +139,13 @@ int main(int argc, char* argv[]) {
 					}
 					break;
 			}
+			glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			SDL_GL_SwapWindow(window);
 		}
 	}
+	SDL_GL_DeleteContext(glContext);
+	SDL_DestroyWindow(window);
+	SDL_Quit();
 	return 0;
 }
