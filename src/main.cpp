@@ -71,7 +71,7 @@ unsigned int createShaderProgram(const char* vertSrc, const char* fragSrc) {
 	//Birbirlerine bagla
 	glLinkProgram(program);
 
-	// Hata kontrolü
+	// Hata kontrolu
 	int success;
 	glGetProgramiv(program, GL_LINK_STATUS, &success);
 	if (!success) {
@@ -80,7 +80,7 @@ unsigned int createShaderProgram(const char* vertSrc, const char* fragSrc) {
 		std::cout << "Program link hatasi:\n" << log << std::endl;
 	}
 
-	// Shader'lar programa bağlandı, artık ayrıca tutmaya gerek yok
+	// Shader'lar programa baglandi, artık ayrıca tutmaya gerek yok
 	glDeleteShader(vert);
 	glDeleteShader(frag);
 
@@ -162,9 +162,9 @@ int main(int argc, char* argv[]) {
 
 	float vertices[] = {
 		//  pozisyon              renk
-		-0.5f, -0.5f, 0.0f,   1.0f, 0.0f, 0.0f,  // sol alt  → kırmızı
+		-0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,  // sol alt  → mavi
 		 0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,  // sağ alt  → yeşil
-		 0.0f,  0.5f, 0.0f,   0.0f, 0.0f, 1.0f,  // üst orta → mavi
+		 0.0f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,  // üst orta → hirmizi
 	};
 
 	// ---------------------------------------------
