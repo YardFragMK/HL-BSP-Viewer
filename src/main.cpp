@@ -2,6 +2,91 @@
 #include<SDL.h>
 #include<iostream>
 
+
+// ---------------------------------------------
+//  SHADER KAYNAK KODLARI
+// ---------------------------------------------
+
+const char* vertexShaderSource = R"(
+    #version 330 core
+
+    layout(location = 0) in vec3 aPos;
+    layout(location = 1) in vec3 aColor;
+
+    out vec3 vColor;
+
+    void main() {
+        vColor = aColor;
+        gl_Position = vec4(aPos, 1.0);
+    }
+)";
+
+const char* fragmentShaderSource = R"(
+    #version 330 core
+
+    in  vec3 vColor;
+    out vec4 FragColor;
+
+    void main() {
+        FragColor = vec4(vColor, 1.0);
+    }
+)";
+
+
+
+// ---------------------------------------------
+//  SHADER DERLEME
+// ---------------------------------------------
+
+//Bir shader oluşturur
+unsigned int compileShader(unsigned int type, const char* source) { 
+
+	unsigned int shader = glCreateShader(type); //GPU tarafında bos shader olusturur
+	glShaderSource(shader, 1, &source, nullptr); //GLSL kodunu yukler
+	glCompileShader(shader); //Derler
+
+	// Hata kontrolü
+	int success;
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &success); //Derleme basarili mi?
+	if (!success) {
+		char log[512];
+		glGetShaderInfoLog(shader, 512, nullptr, log); //Hata mesajini al
+		std::cout << "Shader hatasi:\n" << log << std::endl; //Hta mesajini yaz
+		return 0;
+	}
+
+	return shader;
+}
+
+//Vertex + Fragment shaderı birleştirir
+unsigned int createShaderProgram(const char* vertSrc, const char* fragSrc) { 
+
+	unsigned int vert = compileShader(GL_VERTEX_SHADER, vertSrc);
+	unsigned int frag = compileShader(GL_FRAGMENT_SHADER, fragSrc);
+
+	unsigned int program = glCreateProgram(); //Program olusturur
+	//Shaderları programa ekle.
+	glAttachShader(program, vert);
+	glAttachShader(program, frag);
+	//Birbirlerine bagla
+	glLinkProgram(program);
+
+	// Hata kontrolü
+	int success;
+	glGetProgramiv(program, GL_LINK_STATUS, &success);
+	if (!success) {
+		char log[512];
+		glGetProgramInfoLog(program, 512, nullptr, log);
+		std::cout << "Program link hatasi:\n" << log << std::endl;
+	}
+
+	// Shader'lar programa bağlandı, artık ayrıca tutmaya gerek yok
+	glDeleteShader(vert);
+	glDeleteShader(frag);
+
+	return program;
+}
+
 int main(int argc, char* argv[]) {
 	//--SDL BASLATILIR---
 	if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -56,7 +141,71 @@ int main(int argc, char* argv[]) {
 	std::cout << "OpenGL : " << glGetString(GL_VERSION) << std::endl;
 	std::cout << "GLSL   : " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 
+// ---------------------------------------------
+//  SHADER PROGRAMI
+// ---------------------------------------------
 
+	unsigned int shaderProgram = createShaderProgram(
+		vertexShaderSource,
+		fragmentShaderSource
+	);
+
+	// ---------------------------------------------
+	//  ÜÇGEN VERİSİ
+	//
+	//  Ekran koordinatları:
+	//  Merkez = (0, 0)   Sağ üst = (1, 1)
+	//  Sol alt = (-1,-1) Sağ alt = (1,-1)
+	//
+	//  Her satır: x, y, z,  r, g, b
+	// ---------------------------------------------
+
+	float vertices[] = {
+		//  pozisyon              renk
+		-0.5f, -0.5f, 0.0f,   1.0f, 0.0f, 0.0f,  // sol alt  → kırmızı
+		 0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,  // sağ alt  → yeşil
+		 0.0f,  0.5f, 0.0f,   0.0f, 0.0f, 1.0f,  // üst orta → mavi
+	};
+
+	// ---------------------------------------------
+	//  VAO ve VBO
+	// ---------------------------------------------
+
+	unsigned int VAO, VBO;
+	glGenVertexArrays(1, &VAO); //VAO olusturur
+	glGenBuffers(1, &VBO); //VBO olusturur
+
+	// VAO'yu bağla — bundan sonraki ayarları hatırlayacak
+	glBindVertexArray(VAO);
+
+	// VBO'ya veriyi yükle
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+	// Attribute 0: pozisyon (ilk 3 float)
+	glVertexAttribPointer(
+		0,                    // location = 0
+		3,                    // 3 bileşen: x, y, z
+		GL_FLOAT,
+		GL_FALSE,
+		6 * sizeof(float),    // stride: bir vertex 6 float yer kaplar
+		(void*)0              // offset: 0. byte'tan başlar
+	);
+	glEnableVertexAttribArray(0);
+
+	// Attribute 1: renk (sonraki 3 float)
+	glVertexAttribPointer(
+		1,                          // location = 1
+		3,                          // 3 bileşen: r, g, b
+		GL_FLOAT,
+		GL_FALSE,
+		6 * sizeof(float),          // stride aynı
+		(void*)(3 * sizeof(float))  // offset: 3. float'tan başlar (12. byte)
+	);
+	glEnableVertexAttribArray(1);
+
+	// Bağlamayı temizle
+	glBindVertexArray(0);
 
 	bool running = true;
 
@@ -139,11 +288,24 @@ int main(int argc, char* argv[]) {
 					}
 					break;
 			}
+			//Ekrani temizle
 			glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			// Shader'ı aktif et
+			glUseProgram(shaderProgram);
+
+			// VAO'yu bağla ve çiz
+			glBindVertexArray(VAO);
+			glDrawArrays(GL_TRIANGLES, 0, 3);
+
 			SDL_GL_SwapWindow(window);
 		}
 	}
+	//Temiz cikis yap
+	glDeleteVertexArrays(1, &VAO);
+	glDeleteBuffers(1, &VBO);
+	glDeleteProgram(shaderProgram);
 	SDL_GL_DeleteContext(glContext);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
